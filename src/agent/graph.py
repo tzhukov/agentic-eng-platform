@@ -6,8 +6,14 @@ from src.agent.sandbox import SandboxExecutor
 from src.agent.config import load_custom_env
 import litellm
 import os
+from prometheus_client import Counter, Histogram
 
-# 1. Initialize Configuration
+# 1. Define Prometheus Metrics
+RETRIES = Counter("agent_retries_total", "Total number of retries")
+FAILURES = Counter("agent_failures_total", "Total number of agent failures")
+TOOL_DURATION = Histogram("qdrant_operation_duration_seconds", "Qdrant tool latency", ["operation"])
+
+# 2. Initialize Configuration
 load_custom_env()
 
 # 2. Configure Observability
@@ -35,7 +41,10 @@ def retrieve_docs(state: AgentState):
     """Fetch relevant documentation from Qdrant."""
     print("\n--- RETRIEVING CONTEXT ---")
     query = state["query"]
-    results = retriever.retrieve(query)
+    
+    with TOOL_DURATION.labels(operation="retrieve").time():
+        results = retriever.retrieve(query)
+    
     context_texts = [r["text"] for r in results]
     return {"context": context_texts}
 
@@ -43,12 +52,16 @@ def generate_solution(state: AgentState):
     """Generate Python code to solve the user's request."""
     if not os.getenv("GOOGLE_API_KEY"):
         raise ValueError("GOOGLE_API_KEY environment variable is not set.")
-    
+
+    # Increment retry counter metric if this is a retry
+    if state.get("retry_count", 0) > 0:
+        RETRIES.inc()
+
     print("--- GENERATING SOLUTION ---")
     query = state["query"]
     context = "\n".join(state["context"])
     error_logs = state.get("error_logs", "")
-    
+
     system_prompt = f"""You are a senior Python expert. Write a clean, functional Python script to solve the user's request.
 
 ### RUNTIME ENVIRONMENT:
@@ -69,7 +82,7 @@ ERROR LOGS:
 ### OUTPUT FORMAT:
 Output ONLY the Python code, wrapped in ```python ... ``` blocks.
 """
-    
+
     response = litellm.completion(
         model="groq/llama-3.3-70b-versatile",
         messages=[
@@ -77,19 +90,18 @@ Output ONLY the Python code, wrapped in ```python ... ``` blocks.
             {"role": "user", "content": query}
         ]
     )
-    
+
     code = response.choices[0].message.content
-    
+
     return {"generated_code": code, "retry_count": state.get("retry_count", 0) + 1}
 
 def execute_sandbox(state: AgentState):
     """Execute the generated code in a real E2B sandbox."""
     print("--- EXECUTING IN E2B SANDBOX ---")
-    
     code = state["generated_code"]
-    
+
     result = executor.run_code(code)
-    
+
     if result["success"]:
         return {
             "execution_result": "Success", 
@@ -98,12 +110,14 @@ def execute_sandbox(state: AgentState):
             "error_logs": ""
         }
     else:
+        FAILURES.inc() # Increment failure metric
         return {
             "execution_result": "Error", 
             "stdout": result["stdout"],
             "stderr": result["stderr"],
             "error_logs": result["error"]
         }
+
 
 def should_retry(state: AgentState):
     """Decide whether to retry or finish."""

@@ -4,6 +4,10 @@ metadata:
   name: {{ include "agent.fullname" . }}-api
   labels:
     {{- include "agent.labels" . | nindent 4 }}
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8000"
+    prometheus.io/path: "/metrics"
 spec:
   replicas: {{ .Values.agent.replicaCount }}
   selector:
