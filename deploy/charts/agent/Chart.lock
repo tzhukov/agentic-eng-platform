@@ -1,0 +1,9 @@
+dependencies:
+- name: qdrant
+  repository: https://qdrant.github.io/qdrant-helm
+  version: 1.18.1
+- name: langfuse
+  repository: https://langfuse.github.io/langfuse-k8s
+  version: 1.5.33
+digest: sha256:79dd89488f79ebf8535c35369510ad5b1ab804aeeb23697e346faa37a4ffc55c
+generated: "2026-06-03T15:08:12.837594417-04:00"

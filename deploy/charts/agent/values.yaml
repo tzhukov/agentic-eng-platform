@@ -1,0 +1,91 @@
+# Default values for agent.
+replicaCount: 1
+
+agent:
+  image:
+    repository: agent-api-image
+    tag: "latest"
+  port: 8000
+  e2b_api_key: "REDACTED"
+  google_api_key: "REDACTED"
+  groq_api_key: "REDACTED"
+
+web:
+  image:
+    repository: agent-web-image
+    tag: "latest"
+
+service:
+  type: ClusterIP
+  port: 8000
+
+serviceAccount:
+  create: true
+  name: "agent-stack"
+
+ingress:
+  enabled: false
+
+httpRoute:
+  enabled: false
+
+autoscaling:
+  enabled: false
+
+# Probe configuration workaround
+livenessProbe:
+  exec:
+    command: ["true"]
+readinessProbe:
+  exec:
+    command: ["true"]
+
+# Infrastructure
+qdrant:
+  service:
+    type: LoadBalancer
+  persistence:
+    size: 1Gi
+
+langfuse:
+  postgresql:
+    deploy: true
+    host: "agent-stack-postgresql"
+    persistence:
+      size: 1Gi
+    auth:
+      password: "dev-db-password-123456"
+  clickhouse:
+    deploy: true
+    host: "agent-stack-clickhouse"
+    replicaCount: 1
+    persistence:
+      size: 1Gi
+    auth:
+      password: "dev-ch-password-123456"
+  zookeeper:
+    replicaCount: 1
+    persistence:
+      size: 1Gi
+  redis:
+    deploy: true
+    host: "agent-stack-redis-primary"
+    auth:
+      enabled: false
+      password: null
+      username: null
+  
+  langfuse:
+    salt: 
+      value: "dev-salt-1234567890"
+    encryptionKey:
+      value: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    nextauth:
+      secret:
+        value: "dev-secret-1234567890"
+  
+  # Bootstrap the initial project and keys
+  commonEnv:
+    LANGFUSE_INIT_PROJECT_NAME: "Agentic Support"
+    LANGFUSE_INIT_PROJECT_PUBLIC_KEY: "pk-lf-dev-123456789"
+    LANGFUSE_INIT_PROJECT_SECRET_KEY: "sk-lf-dev-123456789"
