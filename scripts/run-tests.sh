@@ -18,5 +18,6 @@ pytest tests/test_integration.py
 echo "--- Running E2E Cluster Tests ---"
 # Assumes Tilt is running and port-forwarding 8000
 pytest tests/e2e/test_api.py
+pytest tests/e2e/test_observability.py
 
 echo "--- All tests passed! ---"

@@ -1,0 +1,196 @@
+persistence:
+  enabled: false
+
+adminPassword: admin
+
+resources:
+  limits:
+    cpu: 300m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus-server.agent-system.svc.cluster.local
+        isDefault: true
+
+dashboardProviders:
+  dashboardproviders.yaml:
+    apiVersion: 1
+    providers:
+      - name: 'default'
+        orgId: 1
+        folder: ''
+        type: file
+        disableDeletion: false
+        editable: true
+        options:
+          path: /var/lib/grafana/dashboards/default
+
+dashboards:
+  default:
+    agent-dashboard:
+      json: |
+        {
+          "annotations": {
+            "list": [
+              {
+                "builtIn": 1,
+                "datasource": "-- Grafana --",
+                "enable": true,
+                "hide": true,
+                "name": "Annotations & Alerts",
+                "type": "dashboard"
+              }
+            ]
+          },
+          "editable": true,
+          "fiscalYearStartMonth": 0,
+          "graphTooltip": 0,
+          "id": 1,
+          "links": [],
+          "liveNow": false,
+          "panels": [
+            {
+              "collapsed": false,
+              "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 0
+              },
+              "id": 1,
+              "title": "HTTP Request Rate (by status)",
+              "type": "timeseries",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "Prometheus"
+              },
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "Prometheus"
+                  },
+                  "editorMode": "code",
+                  "expr": "sum(rate(http_requests_total[5m])) by (status)",
+                  "legendFormat": "{{status}}",
+                  "range": true,
+                  "refId": "A"
+                }
+              ]
+            },
+            {
+              "collapsed": false,
+              "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 0
+              },
+              "id": 2,
+              "title": "HTTP Error Rate (5xx)",
+              "type": "timeseries",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "Prometheus"
+              },
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "Prometheus"
+                  },
+                  "editorMode": "code",
+                  "expr": "sum(rate(http_requests_total{status=~\"5..\"}[5m])) / sum(rate(http_requests_total[5m])) * 100",
+                  "legendFormat": "Error Rate %",
+                  "range": true,
+                  "refId": "A"
+                }
+              ]
+            },
+            {
+              "collapsed": false,
+              "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 8
+              },
+              "id": 3,
+              "title": "HTTP Request Latency (p95)",
+              "type": "timeseries",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "Prometheus"
+              },
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "Prometheus"
+                  },
+                  "editorMode": "code",
+                  "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
+                  "legendFormat": "p95 Latency",
+                  "range": true,
+                  "refId": "A"
+                }
+              ]
+            },
+            {
+              "collapsed": false,
+              "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 8
+              },
+              "id": 4,
+              "title": "Agent Custom Metrics",
+              "type": "timeseries",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "Prometheus"
+              },
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "Prometheus"
+                  },
+                  "editorMode": "code",
+                  "expr": "sum(rate(agent_retries_total[5m]))",
+                  "legendFormat": "Retries/sec",
+                  "range": true,
+                  "refId": "A"
+                },
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "Prometheus"
+                  },
+                  "editorMode": "code",
+                  "expr": "sum(rate(agent_failures_total[5m]))",
+                  "legendFormat": "Failures/sec",
+                  "range": true,
+                  "refId": "B"
+                }
+              ]
+            }
+          ],
+          "schemaVersion": 36,
+          "style": "dark",
+          "tags": [],
+          "title": "Agent Stack Dashboard",
+          "uid": "agent-dashboard",
+          "timezone": "browser",
+          "weekStart": ""
+        }

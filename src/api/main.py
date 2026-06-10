@@ -64,6 +64,20 @@ async def query_agent(request: QueryRequest):
 async def health():
     return {"status": "ok"}
 
+@app.get("/debug/fail")
+async def debug_fail():
+    """Simulates a 500 error for SLO testing."""
+    logger.error("DEBUG: Explicit failure requested via /debug/fail")
+    raise HTTPException(status_code=500, detail="Debug failure")
+
+@app.get("/debug/slow")
+async def debug_slow(delay: float = 10.0):
+    """Simulates a slow response for SLO testing."""
+    import asyncio
+    logger.info(f"DEBUG: Sleeping for {delay}s via /debug/slow")
+    await asyncio.sleep(delay)
+    return {"status": "slow", "delay": delay}
+
 @app.get("/metrics")
 async def metrics():
     return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)

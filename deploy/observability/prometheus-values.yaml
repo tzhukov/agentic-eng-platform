@@ -1,0 +1,213 @@
+server:
+  persistentVolume:
+    enabled: false
+  replicaCount: 1
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+  alertmanagers:
+    - scheme: http
+      static_configs:
+        - targets:
+            - "alertmanager.agent-system.svc.cluster.local:9093"
+
+alertmanager:
+  enabled: false
+nodeExporter:
+  enabled: false
+pushgateway:
+  enabled: false
+kubeStateMetrics:
+  enabled: false
+
+serverFiles:
+  # --- SLO/SLI Recording Rules ---
+  recording_rules.yml:
+    groups:
+      - name: agent_api_slo_recording
+        interval: 30s
+        rules:
+          # 5-minute error ratio
+          - record: job:http_requests_error_ratio:rate5m
+            expr: |
+              sum(rate(http_requests_total{status=~"5.."}[5m]))
+              /
+              sum(rate(http_requests_total[5m]))
+
+          # 1-hour error ratio (for slow-burn window)
+          - record: job:http_requests_error_ratio:rate1h
+            expr: |
+              sum(rate(http_requests_total{status=~"5.."}[1h]))
+              /
+              sum(rate(http_requests_total[1h]))
+
+          # 6-hour error ratio (for slow-burn long window)
+          - record: job:http_requests_error_ratio:rate6h
+            expr: |
+              sum(rate(http_requests_total{status=~"5.."}[6h]))
+              /
+              sum(rate(http_requests_total[6h]))
+
+          # 30-minute error ratio (for slow-burn short window)
+          - record: job:http_requests_error_ratio:rate30m
+            expr: |
+              sum(rate(http_requests_total{status=~"5.."}[30m]))
+              /
+              sum(rate(http_requests_total[30m]))
+
+          # p95 query endpoint latency
+          - record: job:http_request_duration_p95:query:rate5m
+            expr: |
+              histogram_quantile(0.95,
+                sum(rate(http_request_duration_seconds_bucket{endpoint="/query"}[5m])) by (le)
+              )
+
+  # --- SLO/SLI Alerting Rules ---
+  alerting_rules.yml:
+    groups:
+      - name: agent_api_error_rate
+        rules:
+          # High 5xx error rate — warning level (>5% for 5m)
+          - alert: HighErrorRate
+            expr: |
+              sum(rate(http_requests_total{status=~"5.."}[5m]))
+              /
+              sum(rate(http_requests_total[5m])) > 0.05
+            for: 5m
+            labels:
+              severity: warning
+              service: agent-stack-api
+            annotations:
+              summary: "High HTTP 5xx error rate on agent-stack-api"
+              description: >
+                Error rate is {{ printf "%.2f" $value | humanizePercentage }} over the last 5 minutes,
+                exceeding the 5% warning threshold.
+              runbook: "Check pod logs: kubectl logs -n agent-system -l app=agent-api --tail=100"
+
+          # Critical 5xx error rate (>20% for 2m)
+          - alert: CriticalErrorRate
+            expr: |
+              sum(rate(http_requests_total{status=~"5.."}[5m]))
+              /
+              sum(rate(http_requests_total[5m])) > 0.20
+            for: 2m
+            labels:
+              severity: critical
+              service: agent-stack-api
+            annotations:
+              summary: "CRITICAL: HTTP 5xx error rate exceeds 20% on agent-stack-api"
+              description: >
+                Error rate is {{ printf "%.2f" $value | humanizePercentage }} — SLO breach imminent.
+                Immediate investigation required.
+              runbook: "Check pod logs: kubectl logs -n agent-system -l app=agent-api --tail=100"
+
+      - name: agent_api_latency
+        rules:
+          # p95 /query latency breach (>30s for 5m)
+          - alert: QueryLatencyBreach
+            expr: |
+              histogram_quantile(0.95,
+                sum(rate(http_request_duration_seconds_bucket{endpoint="/query"}[5m])) by (le)
+              ) > 30
+            for: 5m
+            labels:
+              severity: warning
+              service: agent-stack-api
+              endpoint: /query
+            annotations:
+              summary: "p95 latency on /query exceeds 30s SLO"
+              description: >
+                The 95th percentile latency for /query is {{ printf "%.1f" $value }}s,
+                exceeding the 30s SLO target.
+              runbook: "Inspect LLM call latency and sandbox execution times in Grafana."
+
+          # /healthz latency breach (>200ms for 5m)
+          - alert: HealthCheckLatencyBreach
+            expr: |
+              histogram_quantile(0.95,
+                sum(rate(http_request_duration_seconds_bucket{endpoint="/healthz"}[5m])) by (le)
+              ) > 0.2
+            for: 5m
+            labels:
+              severity: warning
+              service: agent-stack-api
+              endpoint: /healthz
+            annotations:
+              summary: "p95 /healthz latency exceeds 200ms"
+              description: >
+                Health check p95 latency is {{ printf "%.0f" ($value | multiply 1000) }}ms,
+                exceeding the 200ms SLO target.
+
+      - name: agent_api_error_budget
+        rules:
+          # Fast burn: 14.4x burn rate detected in BOTH 1h AND 5m windows
+          # At this rate the monthly error budget (0.5%) is exhausted in ~2 days
+          - alert: SloErrorBudgetFastBurn
+            expr: |
+              (
+                sum(rate(http_requests_total{status=~"5.."}[1h]))
+                / sum(rate(http_requests_total[1h]))
+              ) > (14.4 * 0.005)
+              and
+              (
+                sum(rate(http_requests_total{status=~"5.."}[5m]))
+                / sum(rate(http_requests_total[5m]))
+              ) > (14.4 * 0.005)
+            for: 2m
+            labels:
+              severity: critical
+              service: agent-stack-api
+              slo: availability
+            annotations:
+              summary: "SLO Error Budget: FAST BURN detected (14.4× burn rate)"
+              description: >
+                Error budget is being consumed at 14.4× the sustainable rate.
+                At this pace, the monthly error budget will be exhausted in approximately 2 days.
+                Current 1h error rate: {{ printf "%.3f" $value | humanizePercentage }}.
+              runbook: "Investigate root cause immediately. Consider rolling back recent changes."
+
+          # Slow burn: 6x burn rate detected in BOTH 6h AND 30m windows
+          # At this rate the monthly error budget is exhausted in ~5 days
+          - alert: SloErrorBudgetSlowBurn
+            expr: |
+              (
+                sum(rate(http_requests_total{status=~"5.."}[6h]))
+                / sum(rate(http_requests_total[6h]))
+              ) > (6 * 0.005)
+              and
+              (
+                sum(rate(http_requests_total{status=~"5.."}[30m]))
+                / sum(rate(http_requests_total[30m]))
+              ) > (6 * 0.005)
+            for: 15m
+            labels:
+              severity: warning
+              service: agent-stack-api
+              slo: availability
+            annotations:
+              summary: "SLO Error Budget: SLOW BURN detected (6× burn rate)"
+              description: >
+                Error budget is being consumed at 6× the sustainable rate.
+                At this pace, the monthly error budget will be exhausted in approximately 5 days.
+              runbook: "Review error trends in Grafana. Create ticket for root-cause analysis."
+
+      - name: agent_api_availability
+        rules:
+          # API pod not responding (no metrics for 5m)
+          - alert: AgentApiDown
+            expr: |
+              absent(http_requests_total)
+            for: 5m
+            labels:
+              severity: critical
+              service: agent-stack-api
+            annotations:
+              summary: "agent-stack-api is not producing metrics (may be down)"
+              description: >
+                No http_requests_total metric has been received for 5 minutes.
+                The agent API pod may be crashed or unreachable.
+              runbook: "kubectl get pods -n agent-system -l app=agent-api"

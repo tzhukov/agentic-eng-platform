@@ -12,23 +12,23 @@ Enhance the existing `agentic` project to serve as a comprehensive SRE/DevOps po
 - [x] Update Helm chart to add Prometheus annotations to the API pod.
 
 ### Phase 2: Observability Stack (Modular)
-- [ ] Deploy modular Prometheus, Grafana, and Alertmanager via individual Helm charts.
-- [ ] Configure Prometheus to scrape the `agent-stack-api` service.
-- [ ] Configure Alertmanager for SMTP email notifications.
-- [ ] Create a Grafana dashboard visualizing request rates, error rates, latency, and agent-specific metrics.
+- [x] Deploy modular Prometheus, Grafana, and Alertmanager via individual Helm charts.
+- [x] Configure Prometheus to scrape the `agent-stack-api` service.
+- [x] Configure Alertmanager for SMTP email notifications.
+- [x] Create a Grafana dashboard visualizing request rates, error rates, latency, and agent-specific metrics.
 
 ### Phase 3: SLO/SLI & Error Budgets
-- [ ] Create `docs/sre-devops/slo-spec.md` defining availability and latency objectives.
-- [ ] Implement Prometheus Alerting Rules for:
+- [x] Create `docs/sre-devops/slo-spec.md` defining availability and latency objectives.
+- [x] Implement Prometheus Alerting Rules for:
     - High error rates (5xx).
     - Latency breaches (p95).
     - Burn-rate alerts for error budget consumption.
 
 ### Phase 4: Capacity Planning & Load Testing
-- [ ] Set up `tests/load/` with `k6` test scenarios.
-- [ ] Conduct load tests at increasing RPS (1, 5, 10, 25, 50).
-- [ ] Document saturation points in `docs/sre-devops/capacity-plan.md`.
+- [x] Set up `tests/load/` with `k6` test scenarios.
+- [x] Conduct load tests at increasing RPS (1, 5, 10, 25, 50).
+- [x] Document saturation points in `docs/sre-devops/capacity-plan.md`.
 
 ### Phase 5: Incident Simulation
-- [ ] Add `/debug/fail` and `/debug/slow` endpoints to FastAPI.
-- [ ] Induce failures, record data, and write a postmortem in `docs/sre-devops/incident-001.md`.
+- [x] Add `/debug/fail` and `/debug/slow` endpoints to FastAPI.
+- [x] Induce failures, record data, and write a postmortem in `docs/sre-devops/incident-001.md`.
