@@ -1,3 +1,6 @@
 docs/how-to-become-ai-eng.md
 .env.env
 .env
+__pycache__/
+*.pyc
+.pytest_cache/

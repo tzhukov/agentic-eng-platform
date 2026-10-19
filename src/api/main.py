@@ -6,7 +6,11 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from src.agent.graph import app as agent_app
+from src.agent.metrics import register_litellm_callback
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST, Counter, Histogram
+
+# Initialize LiteLLM cost tracking callback
+register_litellm_callback()
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)

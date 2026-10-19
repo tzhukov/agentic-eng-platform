@@ -94,10 +94,15 @@ The agent logic is modeled as a cyclic graph:
 - [ ] Verify end-to-end functionality with a "broken" test query.
 
 ### Milestone 6: Optimization & Prompt Refinement (Post-MVP)
-- [ ] Implement Root Cause Analysis (RCA) in retry prompts (Chain-of-Thought).
-- [ ] Define explicit sandbox environment constraints in system prompts.
-- [ ] Implement strict output parsing (e.g., XML tags) for robustness.
-- [ ] Anchor generation to documentation context (Contextual Weighting).
+- [x] Implement Root Cause Analysis (RCA) in retry prompts (Chain-of-Thought).
+- [x] Define explicit sandbox environment constraints in system prompts.
+- [x] Implement strict output parsing (e.g., XML tags) for robustness.
+- [x] Anchor generation to documentation context (Contextual Weighting).
+
+### Reliability & SRE Extensions
+- [x] LLM Cost Observability ([`docs/reliability/cost-observability-design.md`](./reliability/cost-observability-design.md))
+- [x] Multi-Cloud Deployment Design ([`docs/deployment/cloud-deployment-design.md`](./deployment/cloud-deployment-design.md))
+- [x] Client Handoff Artifacts Design ([`docs/runbook/client-handoff-design.md`](./runbook/client-handoff-design.md))
 
 ---
 

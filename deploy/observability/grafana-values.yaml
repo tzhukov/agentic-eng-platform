@@ -184,6 +184,151 @@ dashboards:
                   "refId": "B"
                 }
               ]
+            },
+            {
+              "collapsed": false,
+              "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 16
+              },
+              "id": 5,
+              "title": "LLM Token Rate (by model)",
+              "type": "timeseries",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "Prometheus"
+              },
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "Prometheus"
+                  },
+                  "editorMode": "code",
+                  "expr": "sum(rate(llm_tokens_total[5m])) by (model, token_type)",
+                  "legendFormat": "{{model}} ({{token_type}})",
+                  "range": true,
+                  "refId": "A"
+                }
+              ]
+            },
+            {
+              "collapsed": false,
+              "gridPos": {
+                "h": 8,
+                "w": 6,
+                "x": 12,
+                "y": 16
+              },
+              "id": 6,
+              "title": "Estimated Cost Rate ($/hr)",
+              "type": "stat",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "Prometheus"
+              },
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "Prometheus"
+                  },
+                  "editorMode": "code",
+                  "expr": "sum(rate(llm_request_cost_usd_sum[1h])) by (model) * 3600",
+                  "legendFormat": "{{model}}",
+                  "range": true,
+                  "refId": "A"
+                }
+              ]
+            },
+            {
+              "collapsed": false,
+              "gridPos": {
+                "h": 8,
+                "w": 6,
+                "x": 18,
+                "y": 16
+              },
+              "id": 7,
+              "title": "p95 Cost per Query ($)",
+              "type": "stat",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "Prometheus"
+              },
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "Prometheus"
+                  },
+                  "editorMode": "code",
+                  "expr": "histogram_quantile(0.95, sum(rate(agent_total_cost_usd_bucket[1h])) by (le))",
+                  "legendFormat": "p95 Query Cost",
+                  "range": true,
+                  "refId": "A"
+                }
+              ]
+            },
+            {
+              "collapsed": false,
+              "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 24
+              },
+              "id": 8,
+              "title": "Retry Cost Ratio (%)",
+              "type": "gauge",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "Prometheus"
+              },
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "Prometheus"
+                  },
+                  "editorMode": "code",
+                  "expr": "sum(rate(agent_retry_tokens_total[5m])) / sum(rate(llm_tokens_total[5m])) * 100",
+                  "legendFormat": "Retry Token %",
+                  "range": true,
+                  "refId": "A"
+                }
+              ]
+            },
+            {
+              "collapsed": false,
+              "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 24
+              },
+              "id": 9,
+              "title": "Projected Monthly Cost ($)",
+              "type": "stat",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "Prometheus"
+              },
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "Prometheus"
+                  },
+                  "editorMode": "code",
+                  "expr": "sum(rate(llm_request_cost_usd_sum[1h])) * 720",
+                  "legendFormat": "Monthly Spend",
+                  "range": true,
+                  "refId": "A"
+                }
+              ]
             }
           ],
           "schemaVersion": 36,
