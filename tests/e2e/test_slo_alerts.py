@@ -23,6 +23,7 @@ EXPECTED_ALERT_RULES = [
     "SloErrorBudgetFastBurn",
     "SloErrorBudgetSlowBurn",
     "AgentApiDown",
+    "LLMCostBudgetBurn",
 ]
 
 # All recording rules that must be present
