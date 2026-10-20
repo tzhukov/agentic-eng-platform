@@ -5,7 +5,10 @@ GRAFANA_PASS ?= admin
 ALERTMANAGER_URL ?= http://127.0.0.1:9093
 QDRANT_URL ?= http://172.18.255.200:6333
 
-.PHONY: test test-unit test-e2e test-metrics handoff-check dev clean help
+.PHONY: test test-unit test-e2e test-metrics handoff-check dev clean help setup
+
+setup: ## Bootstrap dev environment (install poetry + deps)
+	@./scripts/dev-setup.sh
 
 help: ## Show this help menu
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)

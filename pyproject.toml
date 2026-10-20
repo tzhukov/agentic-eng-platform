@@ -1,0 +1,86 @@
+[tool.poetry]
+name = "agentic-eng-platform"
+version = "0.1.0"
+description = "Self-Correction Customer Support Agent — production-grade AI agent platform"
+authors = ["Platform Team <platform@agentic-eng.dev>"]
+readme = "README.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.12"
+
+# Core — FastAPI web layer
+fastapi = "^0.136"
+uvicorn = "^0.48"
+pydantic = "^2.13"
+orjson = "^3.11"
+python-dotenv = "^1.2"
+PyYAML = "^6.0"
+
+# Core — Agent orchestration
+langgraph = "^1.2"
+langgraph-checkpoint = "^4.1"
+langgraph-prebuilt = "^1.1"
+langgraph-sdk = "^0.4"
+langchain-core = "^1.4"
+langchain-text-splitters = "^1.1"
+langchain-protocol = "^0.0"
+
+# Core — LLM gateway
+litellm = ">=1.55,<1.88"
+openai = "^2.40"
+tiktoken = "^0.13"
+
+# Core — Vector store / RAG
+qdrant-client = "^1.18"
+sentence-transformers = "^5.5"
+
+# Core — Sandbox execution
+e2b = "^2.25"
+e2b-code-interpreter = "^2.7"
+
+# Core — Observability
+prometheus-fastapi-instrumentator = "^8.0"
+prometheus-client = "^0.25"
+langfuse = "^4.7"
+opentelemetry-api = "^1.42"
+opentelemetry-sdk = "^1.42"
+opentelemetry-exporter-otlp-proto-http = "^1.42"
+
+# Core — Utilities
+tenacity = "^9.1"
+httpx = "^0.28"
+requests = "^2.34"
+rich = "^15.0"
+typing-extensions = "^4.15"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^9.0"
+respx = "^0.22"
+pytest-asyncio = ">=0.25"
+ruff = "^0.9"
+mypy = "^1.15"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+asyncio_mode = "auto"
+markers = [
+    "unit: Unit tests (no external infrastructure)",
+    "integration: Integration tests (mocked infrastructure)",
+    "e2e: End-to-end tests (requires running cluster)",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_configs = true

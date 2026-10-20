@@ -5,7 +5,15 @@ This project implements a production-grade, self-correcting AI support agent usi
 ## Quick Start
 
 ### 1. Environment Setup
-Ensure you have `kind`, `helm`, and `tilt` installed.
+
+#### Bootstrap
+```bash
+# One-command setup (installs Poetry + all deps)
+./scripts/dev-setup.sh
+```
+
+#### Prerequisites
+Ensure you have `kind`, `helm`, `tilt`, and `poetry` installed.
 
 Create a `.env` file in the root with the following format:
 ```toml
