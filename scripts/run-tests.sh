@@ -1,26 +1,22 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+# Run the full test suite (unit + integration + optional E2E).
+#
+# Usage:
+#   ./scripts/run-tests.sh          # Run unit + integration only
+#   E2E_TESTS=true ./scripts/run-tests.sh  # Include E2E tests (requires running cluster)
+set -euo pipefail
 
-# Activate virtual environment
-source venv/bin/activate
-export PYTHONPATH=$PYTHONPATH:.
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
-# Run Unit Tests
-echo "--- Running Unit Tests ---"
-pytest tests/test_graph.py
-pytest tests/test_metrics.py
-
-# Run Integration Tests
-echo "--- Running Integration Tests ---"
-export QDRANT_HOST="172.18.255.200"
-pytest tests/test_integration.py
-
-# Run E2E Cluster Tests
-echo "--- Running E2E Cluster Tests ---"
-# Assumes Tilt is running and port-forwarding 8000
-pytest tests/e2e/test_api.py
-pytest tests/e2e/test_debug.py
-pytest tests/e2e/test_observability.py
-pytest tests/e2e/test_slo_alerts.py
-
-echo "--- All tests passed! ---"
+# Use poetry if available, fall back to venv
+if command -v poetry &>/dev/null && [ -f "$PROJECT_DIR/pyproject.toml" ]; then
+    echo "=== Using Poetry environment ==="
+    cd "$PROJECT_DIR"
+    PYTHONPATH="$PROJECT_DIR" poetry run pytest "$@"
+else
+    echo "=== Using venv environment ==="
+    source "$PROJECT_DIR/venv/bin/activate"
+    export PYTHONPATH="$PYTHONPATH:$PROJECT_DIR"
+    pytest "$@"
+fi

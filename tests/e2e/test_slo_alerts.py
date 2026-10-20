@@ -1,16 +1,12 @@
-"""
-E2E tests: Phase 3 — SLO/SLI & Error Budget Alerting Rules
+"""E2E tests: SLO/SLI & Error Budget Alerting Rules.
 
-Validates that the Prometheus alerting rules and recording rules defined in
-deploy/observability/prometheus-values.yaml are correctly loaded into the
-running Prometheus instance.
-"""
-import socket
-import subprocess
-import time
+Validates that Prometheus alerting rules and recording rules are loaded.
+Requires a running Tilt cluster with observability charts deployed.
+Run with: E2E_TESTS=true ./scripts/run-tests.sh"""
+
+import requests
 
 import pytest
-import requests
 
 PROMETHEUS_URL = "http://127.0.0.1:9090"
 
@@ -36,118 +32,78 @@ EXPECTED_RECORDING_RULES = [
 ]
 
 
-def is_port_open(port: int) -> bool:
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        return s.connect_ex(("127.0.0.1", port)) == 0
+class TestPrometheusRules:
+    """Test Prometheus alerting and recording rules."""
 
-
-@pytest.fixture(scope="session", autouse=True)
-def ensure_prometheus_port_forward():
-    """Start a port-forward to Prometheus if not already running."""
-    if is_port_open(9090):
-        yield
-        return
-
-    p = subprocess.Popen(
-        ["kubectl", "port-forward", "svc/prometheus-server", "9090:80", "-n", "agent-system"],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
-    time.sleep(4)
-    yield
-    p.terminate()
-    try:
-        p.wait(timeout=3)
-    except subprocess.TimeoutExpired:
-        p.kill()
-
-
-def _get_all_rules() -> dict:
-    """Fetch all rules from Prometheus /api/v1/rules."""
-    resp = requests.get(f"{PROMETHEUS_URL}/api/v1/rules", timeout=10)
-    resp.raise_for_status()
-    return resp.json()
-
-
-def test_prometheus_rules_endpoint_reachable():
-    """Prometheus rules API is accessible and returns a valid response."""
-    resp = requests.get(f"{PROMETHEUS_URL}/api/v1/rules", timeout=10)
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["status"] == "success"
-    assert "data" in data
-    assert "groups" in data["data"]
-
-
-def test_all_alert_rules_loaded():
-    """All SLO alerting rules defined in prometheus-values.yaml are loaded."""
-    data = _get_all_rules()
-    groups = data["data"]["groups"]
-
-    loaded_alert_names = set()
-    for group in groups:
-        for rule in group.get("rules", []):
-            if rule.get("type") == "alerting":
-                loaded_alert_names.add(rule["name"])
-
-    missing = [r for r in EXPECTED_ALERT_RULES if r not in loaded_alert_names]
-    assert not missing, (
-        f"Missing alerting rules: {missing}\n"
-        f"Loaded alerts: {sorted(loaded_alert_names)}"
-    )
-    print(f"✓ All {len(EXPECTED_ALERT_RULES)} alerting rules loaded: {EXPECTED_ALERT_RULES}")
-
-
-def test_all_recording_rules_loaded():
-    """All SLO recording rules defined in prometheus-values.yaml are loaded."""
-    data = _get_all_rules()
-    groups = data["data"]["groups"]
-
-    loaded_recording_names = set()
-    for group in groups:
-        for rule in group.get("rules", []):
-            if rule.get("type") == "recording":
-                loaded_recording_names.add(rule["name"])
-
-    missing = [r for r in EXPECTED_RECORDING_RULES if r not in loaded_recording_names]
-    assert not missing, (
-        f"Missing recording rules: {missing}\n"
-        f"Loaded recording rules: {sorted(loaded_recording_names)}"
-    )
-    print(f"✓ All {len(EXPECTED_RECORDING_RULES)} recording rules loaded: {EXPECTED_RECORDING_RULES}")
-
-
-def test_burn_rate_alert_rules_have_correct_severity():
-    """Burn-rate alerts have the correct severity labels."""
-    data = _get_all_rules()
-    groups = data["data"]["groups"]
-
-    severity_map = {}
-    for group in groups:
-        for rule in group.get("rules", []):
-            if rule.get("type") == "alerting":
-                severity_map[rule["name"]] = rule.get("labels", {}).get("severity")
-
-    assert severity_map.get("SloErrorBudgetFastBurn") == "critical", (
-        f"SloErrorBudgetFastBurn should be 'critical', got: {severity_map.get('SloErrorBudgetFastBurn')}"
-    )
-    assert severity_map.get("SloErrorBudgetSlowBurn") == "warning", (
-        f"SloErrorBudgetSlowBurn should be 'warning', got: {severity_map.get('SloErrorBudgetSlowBurn')}"
-    )
-    assert severity_map.get("CriticalErrorRate") == "critical"
-    assert severity_map.get("HighErrorRate") == "warning"
-    print("✓ All burn-rate alert severity labels are correctly configured.")
-
-
-def test_recording_rules_are_evaluating():
-    """Recording rules can be queried from Prometheus (they produce results or return no-data gracefully)."""
-    for rule_name in EXPECTED_RECORDING_RULES:
-        resp = requests.get(
-            f"{PROMETHEUS_URL}/api/v1/query",
-            params={"query": rule_name},
-            timeout=10,
-        )
-        assert resp.status_code == 200, f"Query for {rule_name} failed with {resp.status_code}"
+    @pytest.mark.e2e
+    def test_prometheus_rules_endpoint(self, api_client):
+        """Prometheus rules API is accessible."""
+        resp = requests.get(f"{PROMETHEUS_URL}/api/v1/rules", timeout=10)
+        assert resp.status_code == 200
         data = resp.json()
-        assert data["status"] == "success", f"Query for {rule_name} returned non-success: {data}"
-    print(f"✓ All {len(EXPECTED_RECORDING_RULES)} recording rules are queryable.")
+        assert data["status"] == "success"
+        assert "data" in data
+        assert "groups" in data["data"]
+
+    @pytest.mark.e2e
+    def test_all_alert_rules_loaded(self, api_client):
+        """All SLO alerting rules are loaded into Prometheus."""
+        resp = requests.get(f"{PROMETHEUS_URL}/api/v1/rules", timeout=10)
+        data = resp.json()
+        groups = data["data"]["groups"]
+
+        loaded_alert_names = set()
+        for group in groups:
+            for rule in group.get("rules", []):
+                if rule.get("type") == "alerting":
+                    loaded_alert_names.add(rule["name"])
+
+        missing = [r for r in EXPECTED_ALERT_RULES if r not in loaded_alert_names]
+        assert not missing, f"Missing alerting rules: {missing}\nLoaded: {sorted(loaded_alert_names)}"
+
+    @pytest.mark.e2e
+    def test_all_recording_rules_loaded(self, api_client):
+        """All SLO recording rules are loaded into Prometheus."""
+        resp = requests.get(f"{PROMETHEUS_URL}/api/v1/rules", timeout=10)
+        data = resp.json()
+        groups = data["data"]["groups"]
+
+        loaded_recording_names = set()
+        for group in groups:
+            for rule in group.get("rules", []):
+                if rule.get("type") == "recording":
+                    loaded_recording_names.add(rule["name"])
+
+        missing = [r for r in EXPECTED_RECORDING_RULES if r not in loaded_recording_names]
+        assert not missing, f"Missing recording rules: {missing}\nLoaded: {sorted(loaded_recording_names)}"
+
+    @pytest.mark.e2e
+    def test_burn_rate_alert_severity(self, api_client):
+        """Burn-rate alerts have the correct severity labels."""
+        resp = requests.get(f"{PROMETHEUS_URL}/api/v1/rules", timeout=10)
+        data = resp.json()
+        groups = data["data"]["groups"]
+
+        severity_map = {}
+        for group in groups:
+            for rule in group.get("rules", []):
+                if rule.get("type") == "alerting":
+                    severity_map[rule["name"]] = rule.get("labels", {}).get("severity")
+
+        assert severity_map.get("SloErrorBudgetFastBurn") == "critical"
+        assert severity_map.get("SloErrorBudgetSlowBurn") == "warning"
+        assert severity_map.get("CriticalErrorRate") == "critical"
+        assert severity_map.get("HighErrorRate") == "warning"
+
+    @pytest.mark.e2e
+    def test_recording_rules_queryable(self, api_client):
+        """All recording rules can be queried from Prometheus."""
+        for rule_name in EXPECTED_RECORDING_RULES:
+            resp = requests.get(
+                f"{PROMETHEUS_URL}/api/v1/query",
+                params={"query": rule_name},
+                timeout=10,
+            )
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["status"] == "success", f"Query for {rule_name} failed: {data}"
